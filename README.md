@@ -4,12 +4,31 @@ A modern, mobile-optimized teacher planning dashboard built with React, Vite, Ty
 
 ---
 
+## 🔧 Prerequisites
+
+Make sure the following are installed on your system before starting:
+
+- **Node.js** v20 or higher → [Download](https://nodejs.org/)
+- **npm** (comes with Node)
+- **Git** → [Download](https://git-scm.com/)
+- A terminal (PowerShell, Terminal, iTerm, etc.)
+
+You can verify installation with:
+
+```bash
+node -v
+npm -v
+git --version
+```
+
+---
+
 ## 🚀 Getting Started
 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/mmcdani2/planwise-edu.git
+git clone https://github.com/YOUR_USERNAME/planwise-edu.git
 cd planwise-edu
 ```
 
@@ -75,4 +94,4 @@ src/
 
 ## 🧑‍💻 Author
 
-Built with ❤️ by [Alex / Laurel Street Creative]
+Built with ❤️ by [Your Name / Laurel Street Creative]
