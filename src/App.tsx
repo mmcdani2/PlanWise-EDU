@@ -1,22 +1,33 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useSessionContext } from './context/SessionProvider';
+import LoadingScreen from './components/LoadingScreen';
 import Auth from './pages/Auth';
-import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
-import PrivateRoute from './components/PrivateRoute';
+import Onboarding from './pages/Onboarding';
 
 function App() {
-    return (
-        <Router>
-            <Routes>
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/onboarding" element={<Onboarding />} />
-                <Route path="*" element={<p>Page not found</p>} />
-                <Route element={<PrivateRoute />}>
-                    <Route path="/dashboard" element={<Dashboard />} />
-                </Route>
-            </Routes>
-        </Router>
-    );
+  const { session, profile, loading } = useSessionContext();
+
+  if (loading) return <LoadingScreen />;
+
+  return (
+    <Routes>
+      <Route path="/auth" element={<Auth />} />
+      <Route
+        path="/dashboard"
+        element={
+          session && profile ? <Dashboard /> : <Navigate to="/auth" replace />
+        }
+      />
+      <Route
+        path="/onboarding"
+        element={
+          session && !profile ? <Onboarding /> : <Navigate to="/dashboard" replace />
+        }
+      />
+      <Route path="*" element={<Navigate to="/auth" replace />} />
+    </Routes>
+  );
 }
 
 export default App;

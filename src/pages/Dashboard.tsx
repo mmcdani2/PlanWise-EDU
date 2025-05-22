@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../assets/planwise-logo.png';
 import FloatingParticles from '../components/FloatingParticles';
+import { supabase } from '../lib/supabase';
 import { Home, Calendar, BookOpen, CheckCircle, LogOut, Menu, Users, ClipboardList, FileText } from 'lucide-react';
 
 const sampleTodos = [
@@ -20,6 +21,16 @@ export default function Dashboard() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
+
+    const handleLogout = async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            console.error('Logout failed:', error.message);
+        } else {
+            // Add slight delay to ensure session clears before navigating
+            setTimeout(() => navigate('/auth'), 100);
+        }
+    };
 
     const menuItems = [
         { label: 'Home', icon: <Home size={20} />, path: '/dashboard' },
@@ -61,7 +72,7 @@ export default function Dashboard() {
                     ))}
                 </nav>
                 <div className="mt-auto pt-6 border-t border-white/10">
-                    <SidebarItem icon={<LogOut size={20} />} label="Log Out" onClick={() => alert('Logging out...')} />
+                    <SidebarItem icon={<LogOut size={20} />} label="Log Out" onClick={handleLogout} />
                 </div>
             </aside>
 
