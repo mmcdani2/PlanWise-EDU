@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -7,12 +6,10 @@ import logo from '../assets/planwise-logo.png';
 import googleSignInButton from '../assets/btn_google_signin_neutral_normal_web.svg';
 import FloatingParticles from '../components/FloatingParticles';
 import TermsModal from '../components/TermsModal';
-import { useSessionContext } from '../context/SessionProvider';
 import LoadingScreen from '../components/LoadingScreen';
 
 export default function Auth() {
     const navigate = useNavigate();
-    const { session, profile, loading } = useSessionContext();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -22,8 +19,6 @@ export default function Auth() {
     const [agreed, setAgreed] = useState(false);
     const [showTerms, setShowTerms] = useState(false);
     const [passwordStrength, setPasswordStrength] = useState<'weak' | 'medium' | 'strong'>('weak');
-
-    if (loading) return <LoadingScreen />;
 
     const checkStrength = (pwd: string) => {
         const strong = /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{12,}/;
@@ -42,45 +37,47 @@ export default function Auth() {
         e.preventDefault();
         setMessage('');
 
-        if (!email || !password) return setMessage('Email and password are required.');
+        if (!email || !password) {
+            return setMessage('Email and password are required.');
+        }
+
         if (!isLogin) {
             if (!agreed) return setMessage('You must agree to the terms and privacy policy.');
             if (password !== confirmPassword) return setMessage('Passwords do not match.');
-        }
 
-        if (isLogin) {
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-            if (error || !data.user) return setMessage('Invalid email or password.');
+            const { data, error } = await supabase.auth.signUp({ email, password });
 
-            const userId = data.user.id;
-
-            const { data: profile, error: profileError } = await supabase
-                .from('profiles')
-                .select('onboarding_complete')
-                .eq('id', userId)
-                .single();
-
-            if (!profile) {
-                await supabase.auth.signOut();
-                return setMessage('Your account exists but no profile was found. Please complete onboarding.');
+            if (error) {
+                return setMessage(error.message);
             }
 
-            profile.onboarding_complete ? navigate('/dashboard') : navigate('/onboarding');
-        } else {
-            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-                email,
-                password,
-            });
-
-            if (signUpError || !signUpData.user) {
-                return setMessage(signUpError?.message || 'Signup failed.');
-            }
-
-            // No profile creation here — we do that at the end of onboarding
-            navigate('/onboarding');
+            localStorage.setItem('signup_email', email);
+            return navigate('/verify-email');
         }
+
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (error || !data.user) {
+            return setMessage('Invalid email or password.');
+        }
+
+        await supabase.auth.refreshSession(); // Force session update
+
+        if (!data.user.email_confirmed_at) {
+            localStorage.setItem('signup_email', email);
+            return navigate('/verify-email');
+        }
+
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('onboarding_complete')
+            .eq('id', data.user.id)
+            .single();
+
+        if (!profile) return navigate('/onboarding');
+
+        profile.onboarding_complete ? navigate('/dashboard') : navigate('/onboarding');
     };
-
 
     const handleGoogleLogin = async () => {
         const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
@@ -89,11 +86,9 @@ export default function Auth() {
 
     const handleResetPassword = async () => {
         if (!email) return setMessage('Enter your email to reset password.');
-
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
             redirectTo: 'https://your-app-url.com/update-password',
         });
-
         if (error) setMessage(error.message);
         else setMessage('Password reset email sent.');
     };
