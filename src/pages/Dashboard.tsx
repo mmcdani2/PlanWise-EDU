@@ -53,8 +53,7 @@ export default function Dashboard() {
             )}
 
             <aside
-                className={`fixed z-40 md:static transform transition-transform duration-300 ease-in-out w-64 bg-white/5 border-r border-white/10 flex flex-col p-6 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-                    }`}
+                className={`fixed z-40 md:static transform transition-transform duration-300 ease-in-out w-64 bg-gray-900/90 backdrop-blur-md border-r border-gray-700 flex flex-col p-6 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
             >
                 <div className="mb-8 flex justify-center">
                     <img src={logo} alt="PlanWise Logo" className="h-[3.5rem] w-auto" />

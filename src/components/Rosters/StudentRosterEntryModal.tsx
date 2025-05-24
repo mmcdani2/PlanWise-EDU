@@ -67,7 +67,7 @@ export default function StudentRosterEntryModal({ open, onClose }: { open: boole
         const { data: userData } = await supabase.auth.getUser();
         const { data, error } = await supabase
             .from("students")
-            .select("first_name, last_name, student_id, accommodations, period")
+            .select("id, first_name, last_name, student_id, accommodations, period")
             .eq("teacher_id", userData?.user?.id)
             .eq("period", period);
 
@@ -90,17 +90,18 @@ export default function StudentRosterEntryModal({ open, onClose }: { open: boole
         );
         setRosterForPeriod(updated);
 
-        await supabase
+        const { error } = await supabase
             .from("students")
             .update({ accommodations: selectedAccommodations })
-            .eq("student_id", accomStudent.student_id);
+            .eq("id", accomStudent.id);
 
-        await handleOpenPeriodRoster(accomStudent.period);
         if (error) {
-        setToastMessage("❌ Failed to save accommodations.");
-      } else {
-        setToastMessage("✅ Accommodations saved successfully.");
-      }
+            console.error("❌ Supabase error:", error.message);
+            setToastMessage("❌ Failed to save accommodations.");
+        } else {
+            await handleOpenPeriodRoster(accomStudent.period);
+            setToastMessage("✅ Accommodations saved successfully.");
+        }
       setTimeout(() => setToastMessage(""), 3000);
       setAccomStudent(null);
     };
@@ -172,6 +173,22 @@ export default function StudentRosterEntryModal({ open, onClose }: { open: boole
     };
 
     useEffect(() => {
+        const fetchScheduleType = async () => {
+            const { data: userData } = await supabase.auth.getUser();
+            if (!userData?.user?.id) return;
+
+            const { data, error } = await supabase
+                .from("profiles")
+                .select("schedule_type")
+                .eq("id", userData.user.id)
+                .single();
+
+            if (data?.schedule_type) {
+                setScheduleType(data.schedule_type);
+            }
+        };
+
+        fetchScheduleType();
         fetchActivePeriods();
     }, []);
 
@@ -192,9 +209,27 @@ export default function StudentRosterEntryModal({ open, onClose }: { open: boole
                         <p className="text-white/80 mb-4">&#128197; You haven't set up your schedule yet.</p>
                         <p className="text-sm mb-4">Select your schedule type to get started.</p>
                         <div className="flex gap-3 justify-center">
-                            <button onClick={() => setScheduleType("Traditional")} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white text-sm">Traditional</button>
-                            <button onClick={() => setScheduleType("Block")} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white text-sm">Block</button>
-                            <button onClick={() => setScheduleType("Custom")} className="bg-white/10 border border-gray-500 px-4 py-2 rounded text-white text-sm">Custom</button>
+                            <button onClick={async () => {
+                                setScheduleType("Traditional");
+                                const { data: user } = await supabase.auth.getUser();
+                                if (user?.user?.id) {
+                                    await supabase.from("profiles").update({ schedule_type: "Traditional" }).eq("id", user.user.id);
+                                }
+                            }} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white text-sm">Traditional</button>
+                            <button onClick={async () => {
+                                setScheduleType("Block");
+                                const { data: user } = await supabase.auth.getUser();
+                                if (user?.user?.id) {
+                                    await supabase.from("profiles").update({ schedule_type: "Block" }).eq("id", user.user.id);
+                                }
+                            }} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white text-sm">Block</button>
+                            <button onClick={async () => {
+                                setScheduleType("Custom");
+                                const { data: user } = await supabase.auth.getUser();
+                                if (user?.user?.id) {
+                                    await supabase.from("profiles").update({ schedule_type: "Custom" }).eq("id", user.user.id);
+                                }
+                            }} className="bg-white/10 border border-gray-500 px-4 py-2 rounded text-white text-sm">Custom</button>
                         </div>
                     </div>
                 ) : (
