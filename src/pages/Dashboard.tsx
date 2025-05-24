@@ -4,6 +4,8 @@ import logo from '../assets/planwise-logo.png';
 import FloatingParticles from '../components/FloatingParticles';
 import { supabase } from '../lib/supabase';
 import { Home, Calendar, BookOpen, CheckCircle, LogOut, Menu, Users, ClipboardList, FileText } from 'lucide-react';
+import StudentRosterEntryModal from "../components/Rosters/StudentRosterEntryModal";
+
 
 const sampleTodos = [
     { id: 1, text: 'Submit lesson plan for Algebra I', priority: 'High' },
@@ -19,6 +21,7 @@ const sampleProgress = [
 
 export default function Dashboard() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [showRosterModal, setShowRosterModal] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -27,7 +30,6 @@ export default function Dashboard() {
         if (error) {
             console.error('Logout failed:', error.message);
         } else {
-            // Add slight delay to ensure session clears before navigating
             setTimeout(() => navigate('/auth'), 100);
         }
     };
@@ -85,12 +87,18 @@ export default function Dashboard() {
                 <p className="text-white/70">Welcome to your planning workspace.</p>
 
                 <div className="mt-8 grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                    <div className="bg-white/5 p-6 rounded-lg border border-white/10">
+                    <div
+                        onClick={() => navigate('/planner')}
+                        className="bg-white/5 p-6 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition"
+                    >
                         <h3 className="text-lg font-semibold mb-3">📅 Planner Snapshot</h3>
                         <p className="text-sm text-white/70">Today's schedule appears here soon.</p>
                     </div>
 
-                    <div className="bg-white/5 p-6 rounded-lg border border-white/10">
+                    <div
+                        onClick={() => navigate('/goals')}
+                        className="bg-white/5 p-6 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition"
+                    >
                         <h3 className="text-lg font-semibold mb-3">✅ To-Do Snapshot</h3>
                         <ul className="text-sm space-y-1">
                             {sampleTodos.map(todo => (
@@ -100,10 +108,13 @@ export default function Dashboard() {
                                 </li>
                             ))}
                         </ul>
-                        <button onClick={() => navigate('/goals')} className="text-xs text-blue-300 hover:underline mt-2">View All</button>
+                        <p className="text-xs text-blue-300 hover:underline mt-2">View All</p>
                     </div>
 
-                    <div className="bg-white/5 p-6 rounded-lg border border-white/10">
+                    <div
+                        onClick={() => navigate('/progress')}
+                        className="bg-white/5 p-6 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition"
+                    >
                         <h3 className="text-lg font-semibold mb-3">📊 Progress Summaries</h3>
                         <ul className="text-sm space-y-1">
                             {sampleProgress.map((entry, idx) => (
@@ -112,12 +123,30 @@ export default function Dashboard() {
                                 </li>
                             ))}
                         </ul>
-                        <button onClick={() => navigate('/progress')} className="text-xs text-blue-300 hover:underline mt-2">View Full Report</button>
+                        <p className="text-xs text-blue-300 hover:underline mt-2">View Full Report</p>
                     </div>
 
-                    <div className="bg-white/5 p-6 rounded-lg border border-white/10">👥 Student Rosters</div>
-                    <div className="bg-white/5 p-6 rounded-lg border border-white/10">🛠 Accommodations Tracker</div>
+                    <div
+                        onClick={() => setShowRosterModal(true)}
+                        className="bg-white/5 p-6 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition"
+                    >
+                        <h3 className="text-lg font-semibold mb-2">👥 Student Rosters</h3>
+                        <p className="text-sm text-white/70">Import or manage your class rosters.</p>
+                    </div>
+
+                    <div
+                        onClick={() => navigate('/accommodations')}
+                        className="bg-white/5 p-6 rounded-lg border border-white/10 cursor-pointer hover:bg-white/10 transition"
+                    >
+                        <h3 className="text-lg font-semibold mb-2">🛠 Accommodations Tracker</h3>
+                        <p className="text-sm text-white/70">Track and log IEP/504/BIP implementation.</p>
+                    </div>
                 </div>
+
+                <StudentRosterEntryModal
+                    open={showRosterModal}
+                    onClose={() => setShowRosterModal(false)}
+                />
             </main>
         </div>
     );
