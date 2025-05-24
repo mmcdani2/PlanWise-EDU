@@ -1,8 +1,9 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Papa from "papaparse"
 import { supabase } from "../../lib/supabase"
 import Toast from "../ui/Toast"
-import { useEffect } from "react";
+import { accommodationsData, getPlanNames, getCategoriesForPlan } from "../data/accommodationsData";
+
 
 export default function StudentRosterEntryModal({ open, onClose }: { open: boolean; onClose: () => void }) {
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -14,6 +15,11 @@ export default function StudentRosterEntryModal({ open, onClose }: { open: boole
     const [activePeriods, setActivePeriods] = useState<string[]>([]);
     const [viewingPeriod, setViewingPeriod] = useState<string | null>(null);
     const [rosterForPeriod, setRosterForPeriod] = useState<any[]>([]);
+    const [accomStudent, setAccomStudent] = useState<any | null>(null);
+    const [selectedAccommodations, setSelectedAccommodations] = useState<string[]>([]);
+    const [customInput, setCustomInput] = useState<string>("");
+    const [customPlan, setCustomPlan] = useState<string>("");
+    const [customCategory, setCustomCategory] = useState<string>("");
 
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -23,6 +29,14 @@ export default function StudentRosterEntryModal({ open, onClose }: { open: boole
             parseCSV(file)
         }
     }
+
+    const handleAddCustom = () => {
+        if (customInput.trim() && customPlan && customCategory) {
+            setSelectedAccommodations((prev) => [...prev, customInput.trim()]);
+            setCustomInput("");
+        }
+    };
+
 
     const parseCSV = (file: File) => {
         Papa.parse(file, {
@@ -53,7 +67,7 @@ export default function StudentRosterEntryModal({ open, onClose }: { open: boole
         const { data: userData } = await supabase.auth.getUser();
         const { data, error } = await supabase
             .from("students")
-            .select("first_name, last_name, student_id")
+            .select("first_name, last_name, student_id, accommodations, period")
             .eq("teacher_id", userData?.user?.id)
             .eq("period", period);
 
@@ -61,10 +75,35 @@ export default function StudentRosterEntryModal({ open, onClose }: { open: boole
             console.error("Error fetching roster:", error.message);
             setRosterForPeriod([]);
         } else {
-            setRosterForPeriod(data);
+            const sorted = [...data].sort((a, b) => a.last_name.localeCompare(b.last_name));
+            setRosterForPeriod(sorted);
         }
     };
-      
+
+    const handleSaveAccommodations = async () => {
+        if (!accomStudent) return;
+
+        const updated = rosterForPeriod.map((s) =>
+            s.student_id === accomStudent.student_id
+                ? { ...s, accommodations: selectedAccommodations }
+                : s
+        );
+        setRosterForPeriod(updated);
+
+        await supabase
+            .from("students")
+            .update({ accommodations: selectedAccommodations })
+            .eq("student_id", accomStudent.student_id);
+
+        await handleOpenPeriodRoster(accomStudent.period);
+        if (error) {
+        setToastMessage("❌ Failed to save accommodations.");
+      } else {
+        setToastMessage("✅ Accommodations saved successfully.");
+      }
+      setTimeout(() => setToastMessage(""), 3000);
+      setAccomStudent(null);
+    };
 
     const getPeriods = () => {
         if (scheduleType === "Block") {
@@ -104,9 +143,6 @@ export default function StudentRosterEntryModal({ open, onClose }: { open: boole
         }))
 
         const { error } = await supabase.from("students").insert(formattedStudents)
-        console.log("Saving students for teacher:", teacherId);
-        console.log("First formatted student:", formattedStudents[0]);
-
         if (error) {
             setToastMessage("❌ Error saving students: " + error.message)
         } else {
@@ -135,27 +171,25 @@ export default function StudentRosterEntryModal({ open, onClose }: { open: boole
         }
     };
 
-    // Mount the fetch on load
     useEffect(() => {
         fetchActivePeriods();
     }, []);
-      
 
-    if (!open) return null
+    if (!open) return null;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
             <div className="w-full max-w-3xl bg-gray-900 text-gray-50 rounded-2xl shadow-2xl border border-gray-800 p-6 relative">
-                {toastMessage && <Toast message={toastMessage} type={toastMessage.startsWith("❌") ? "error" : "success"} />}
+                {toastMessage && <Toast message={toastMessage} type={toastMessage.startsWith("âŒ") ? "error" : "success"} />}
 
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-bold">Manage Student Rosters</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white">&times;</button>
                 </div>
 
                 {!scheduleType ? (
                     <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 text-center">
-                        <p className="text-white/80 mb-4">🗓️ You haven't set up your schedule yet.</p>
+                        <p className="text-white/80 mb-4">&#128197; You haven't set up your schedule yet.</p>
                         <p className="text-sm mb-4">Select your schedule type to get started.</p>
                         <div className="flex gap-3 justify-center">
                             <button onClick={() => setScheduleType("Traditional")} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white text-sm">Traditional</button>
@@ -191,11 +225,11 @@ export default function StudentRosterEntryModal({ open, onClose }: { open: boole
 
                                 {showInstructions && (
                                     <div className="mt-2 text-sm text-white/80 bg-gray-800 border border-gray-700 rounded-lg p-4">
-                                        <h3 className="text-base font-semibold mb-1">🧩 How to Use the Template</h3>
+                                        <h3 className="text-base font-semibold mb-1">ðŸ§© How to Use the Template</h3>
                                         <ul className="list-disc list-inside space-y-1">
                                             <li>Click <strong>Download Template</strong> to get a blank CSV file.</li>
                                             <li>Open the file using <strong>Excel</strong> or <strong>Google Sheets</strong>.</li>
-                                            <li>Fill in each row with your students’ info:
+                                            <li>Fill in each row with your studentsâ€™ info:
                                                 <ul className="list-disc list-inside ml-5">
                                                     <li><code>Class Period</code>: e.g., A1, B3, 1st, etc.</li>
                                                     <li><code>Student ID</code>: as listed in your SIS</li>
@@ -203,7 +237,7 @@ export default function StudentRosterEntryModal({ open, onClose }: { open: boole
                                                 </ul>
                                             </li>
                                             <li>Do not delete or rename the column headers.</li>
-                                            <li>When finished, click <strong>File → Download → .CSV</strong>.</li>
+                                            <li>When finished, click <strong>File â†’ Download â†’ .CSV</strong>.</li>
                                             <li>Then upload the file using the box above.</li>
                                         </ul>
                                     </div>
@@ -273,16 +307,35 @@ export default function StudentRosterEntryModal({ open, onClose }: { open: boole
 
             {viewingPeriod && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-                    <div className="bg-gray-900 p-6 rounded-lg shadow-lg w-full max-w-md border border-gray-700 text-white">
+                    <div className="bg-gray-900 p-6 rounded-lg shadow-lg w-full max-w-2xl border border-gray-700 text-white max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold">Students in {viewingPeriod}</h3>
                             <button onClick={() => setViewingPeriod(null)} className="text-gray-400 hover:text-white">✕</button>
                         </div>
                         {rosterForPeriod.length > 0 ? (
-                            <ul className="space-y-2 max-h-64 overflow-y-auto text-sm">
+                            <ul className="space-y-4 text-sm">
                                 {rosterForPeriod.map((student) => (
-                                    <li key={student.student_id} className="border-b border-gray-700 pb-1">
-                                        {student.last_name}, {student.first_name} <span className="text-white/50">({student.student_id})</span>
+                                    <li key={student.student_id} className="border-b border-gray-700 pb-2">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="font-medium">{student.last_name}, {student.first_name} <span className="text-white/50">({student.student_id})</span></span>
+                                            <div className="flex flex-wrap gap-3 mt-1">
+                                                <label><input type="checkbox" className="mr-1" /> IEP</label>
+                                                <label><input type="checkbox" className="mr-1" /> 504</label>
+                                                <label><input type="checkbox" className="mr-1" /> BIP</label>
+                                                <label><input type="checkbox" className="mr-1" /> ELL</label>
+                                            </div>
+                                            <div className="mt-2">
+                                                <button
+                                                    onClick={() => {
+                                                        setAccomStudent(student);
+                                                        setSelectedAccommodations(student.accommodations ?? []);
+                                                    }}
+                                                    className="text-blue-400 text-sm hover:underline"
+                                                >
+                                                    + Manage Accommodations
+                                                </button>
+                                            </div>
+                                        </div>
                                     </li>
                                 ))}
                             </ul>
@@ -292,7 +345,109 @@ export default function StudentRosterEntryModal({ open, onClose }: { open: boole
                     </div>
                 </div>
             )}
+
+
+            {accomStudent && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+                    <div className="bg-gray-900 p-6 rounded-xl shadow-lg w-full max-w-5xl border border-gray-700 text-white overflow-y-auto max-h-[90vh]">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold">Accommodations for {accomStudent.last_name}, {accomStudent.first_name}</h3>
+                            <button onClick={() => setAccomStudent(null)} className="text-gray-400 hover:text-white">✕</button>
+                        </div>
+                        <div className="space-y-6">
+                            {accommodationsData.map(plan => (
+                                <div key={plan.plan}>
+                                    <h2 className="text-xl font-semibold text-blue-400 mb-2">{plan.plan}</h2>
+                                    {plan.categories.map(category => (
+                                        <div key={category.name} className="mb-4">
+                                            <h4 className="font-medium mb-1 text-gray-300">{category.name}</h4>
+                                            <div className="flex flex-wrap gap-2">
+                                                {category.items.map(item => (
+                                                    <button key={item} onClick={() =>
+                                                        setSelectedAccommodations(prev =>
+                                                            prev.includes(item)
+                                                                ? prev.filter(i => i !== item)
+                                                                : [...prev, item]
+                                                        )
+                                                    } className={`px-3 py-1 rounded-full text-sm border transition-all duration-200 ${selectedAccommodations.includes(item)
+                                                        ? 'bg-purple-600 text-white border-purple-800'
+                                                        : 'bg-gray-800 text-gray-200 border-gray-600'
+                                                        }`}>{item}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                            <div className="space-y-4">
+                                <p className="text-sm font-semibold text-white/80">➕ Add a Custom Accommodation</p>
+
+                                <div className="flex gap-4">
+                                    <div className="flex-1">
+                                        <label className="block text-xs mb-1 text-white/60">Plan Type (504, IEP, etc.)</label>
+                                        <select
+                                            value={customPlan}
+                                            onChange={(e) => {
+                                                setCustomPlan(e.target.value);
+                                                setCustomCategory("");
+                                            }}
+                                            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white"
+                                        >
+                                            <option value="">Select Plan</option>
+                                            {getPlanNames().map((plan) => (
+                                                <option key={plan} value={plan}>{plan}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="flex-1">
+                                        <label className="block text-xs mb-1 text-white/60">Accommodation Category</label>
+                                        <select
+                                            value={customCategory}
+                                            onChange={(e) => setCustomCategory(e.target.value)}
+                                            disabled={!customPlan}
+                                            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white"
+                                        >
+                                            <option value="">Select Category</option>
+                                            {customPlan && getCategoriesForPlan(customPlan).map((cat) => (
+                                                <option key={cat} value={cat}>{cat}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {customPlan && customCategory && (
+                                    <div className="mt-2">
+                                        <label className="block text-xs mb-1 text-white/60">Accommodation Description</label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={customInput}
+                                                onChange={(e) => setCustomInput(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleAddCustom()}
+                                                className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm"
+                                                placeholder="Type and press Enter..."
+                                            />
+                                            <button
+                                                onClick={handleAddCustom}
+                                                className="px-3 py-2 rounded bg-green-600 hover:bg-green-700 text-white text-sm"
+                                            >
+                                                Add
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+
+                            <div className="mt-6 flex justify-end">
+                                <button onClick={handleSaveAccommodations} className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     )
-      
 }
